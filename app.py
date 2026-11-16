@@ -8,7 +8,13 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, resources={r"/predict": {"origins": "*"}})
+CORS(
+    app,
+    resources={r"/*": {"origins": "*"}},
+    methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
+    supports_credentials=False
+)
 
 MODEL_PATH = os.environ.get("MODEL_PATH", "student_performance_ann.keras")
 SCALER_PATH = os.environ.get("SCALER_PATH", "student_scaler.pkl")
@@ -77,8 +83,14 @@ def health():
     return jsonify({"status": "healthy"})
 
 
-@app.post("/predict")
+
+@app.route("/predict", methods=["POST", "OPTIONS"])
 def predict():
+
+    # Handle browser CORS preflight request
+    if request.method == "OPTIONS":
+        return "", 204
+
     try:
         data = request.get_json(force=True)
         study = float(data["studytime"])
@@ -92,6 +104,7 @@ def predict():
             return jsonify({"error": "absences must be a whole number from 0 to 75."}), 400
         if not 0 <= g1 <= 20 or not 0 <= g2 <= 20:
             return jsonify({"error": "G1 and G2 must be between 0 and 20."}), 400
+
 
         # Feature order must match the training notebook:
         # ["studytime", "absences", "G1", "G2"].
